@@ -48,8 +48,8 @@ models/*.h5
 models/*.pkl
 models/*.joblib
 
-# Data files (too large for GitHub)
-data/*.csv
+# Data files (commented out - needed for Colab)
+# data/*.csv
 
 # Temporary files
 *.tmp
