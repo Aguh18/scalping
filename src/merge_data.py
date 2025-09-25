@@ -33,21 +33,61 @@ def load_and_merge_2024_data(data_dir: str = "./data") -> pd.DataFrame:
     for file_path in sorted(csv_files):
         print(f"Loading {os.path.basename(file_path)}...")
         
-        # Read CSV with proper column names (Binance format)
-        df = pd.read_csv(file_path, header=None)
-        df.columns = [
-            'timestamp', 'open', 'high', 'low', 'close', 'volume',
-            'close_time', 'quote_volume', 'trades', 'taker_buy_base',
-            'taker_buy_quote', 'ignore'
-        ]
-        
-        # Convert timestamp to datetime
-        df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
-        
-        # Select relevant columns
-        df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
-        
-        dataframes.append(df)
+        try:
+            # Try to read with header first
+            df = pd.read_csv(file_path)
+            
+            # Check if it has proper column names
+            if 'open' in df.columns and 'high' in df.columns:
+                # Already has proper column names
+                if 'timestamp' in df.columns:
+                    df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
+                elif 'date' in df.columns:
+                    df['date'] = pd.to_datetime(df['date'])
+                else:
+                    # Use first column as date
+                    df['date'] = pd.to_datetime(df.iloc[:, 0])
+            else:
+                # No header, try to detect format
+                df = pd.read_csv(file_path, header=None)
+                
+                # Check number of columns to determine format
+                if len(df.columns) == 6:
+                    # Simple format: date, open, high, low, close, volume
+                    df.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+                    df['date'] = pd.to_datetime(df['date'])
+                elif len(df.columns) == 12:
+                    # Binance format
+                    df.columns = [
+                        'timestamp', 'open', 'high', 'low', 'close', 'volume',
+                        'close_time', 'quote_volume', 'trades', 'taker_buy_base',
+                        'taker_buy_quote', 'ignore'
+                    ]
+                    df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
+                else:
+                    # Try to use first 6 columns
+                    df = df.iloc[:, :6]
+                    df.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+                    df['date'] = pd.to_datetime(df['date'])
+            
+            # Select relevant columns
+            df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
+            
+            # Convert to numeric
+            for col in ['open', 'high', 'low', 'close', 'volume']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            # Remove rows with NaN values
+            df = df.dropna()
+            
+            dataframes.append(df)
+            
+        except Exception as e:
+            print(f"Error loading {file_path}: {e}")
+            continue
+    
+    if not dataframes:
+        raise ValueError("No valid CSV files could be loaded")
     
     # Combine all dataframes
     combined_df = pd.concat(dataframes, ignore_index=True)

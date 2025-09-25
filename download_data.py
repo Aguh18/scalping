@@ -59,12 +59,19 @@ def save_data_to_csv(data, filename):
     ])
     
     # Convert timestamp to datetime
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
     
-    # Select relevant columns
-    df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+    # Select relevant columns and rename
+    df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
     
-    # Save to CSV
+    # Convert to numeric
+    for col in ['open', 'high', 'low', 'close', 'volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Remove NaN values
+    df = df.dropna()
+    
+    # Save to CSV without index
     df.to_csv(filename, index=False)
     print(f"Saved {len(df)} records to {filename}")
 
